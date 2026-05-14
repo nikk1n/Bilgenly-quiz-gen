@@ -9,3 +9,7 @@ pydantic
 fastapi
 uvicorn
 pydantic-settings
+pdfminer-six
+pi-heif
+unstructured-inference
+pdf2image
