@@ -4,7 +4,7 @@ import re
 from transformers import AutoProcessor, Gemma4ForConditionalGeneration, BitsAndBytesConfig
 import torch
 
-from config import Settings
+from config import settings
 
 bnb_config = BitsAndBytesConfig(
     load_in_4bit=True,
@@ -15,7 +15,7 @@ bnb_config = BitsAndBytesConfig(
 
 # Load model (once, then reuse for all chunks)
 model_id = "google/gemma-4-E4B-it"
-HF_TOKEN=Settings.HF_TOKEN
+HF_TOKEN=settings.HF_TOKEN
 print("processor")
 processor = AutoProcessor.from_pretrained(model_id,token=HF_TOKEN)
 print("model")

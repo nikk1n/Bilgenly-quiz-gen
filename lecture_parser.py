@@ -35,7 +35,10 @@ def merge_and_clean(elements, min_length=50):
     buffer = []
 
     for el in elements:
-        t = el["text"]
+        if isinstance(el,dict):
+            t = el["text"]
+        else:
+            t = el
         if len(t) < min_length:
             buffer.append(t)
         else:
@@ -77,6 +80,11 @@ def process_pdf_to_chunks(pdf_path=None,pdf_file=None):
     return chunks
 
 def cluster_chunks(chunks, num_clusters=20):
+    if len(chunks) < 2:
+        return chunks
+
+        # Can't have more clusters than samples
+    num_clusters = min(num_clusters, len(chunks))
     # Get embeddings and cluster to ~30 groups
     embeddings = model.encode(chunks, normalize_embeddings=True)
     sim_matrix = cosine_similarity(embeddings)
@@ -111,7 +119,15 @@ def extract_context_from_pdf(pdf_file_path=None,pdf_file=None,num_chunks=20):
     return final_chunks
 
 def extract_context_from_text(text,num_chunks=20):
-    chunks = semantic_split(text)
+    # Split into paragraphs/sentences first, same as PDF elements
+    blocks = [b.strip() for b in re.split(r'\n{2,}|\n', text) if b.strip()]
+
+    # Fall back to sentence splitting if no newlines (e.g. one big paragraph)
+    if len(blocks) < 3:
+        blocks = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
+
+    merged_texts = merge_and_clean(blocks)
+    chunks = semantic_split(blocks)
     print(f"Extracted {len(chunks)} coherent sections:\n")
     for i, c in enumerate(chunks[:5], 1):
         print(f"--- Section {i} ---\n{c[:500]}...\n")
@@ -124,8 +140,16 @@ def extract_context_from_text(text,num_chunks=20):
     print(counter)
 
     filtered = [c for c in chunks if len(c) > 200]
+    if not filtered:
+        filtered = [c for c in chunks if len(c) > 50]
+    if not filtered:
+        filtered = chunks  # last resort: use everything
 
-    final_chunks=cluster_chunks(filtered,num_chunks)
+        # Guard: nothing usable at all
+        if not filtered:
+            return []
+
+    final_chunks=cluster_chunks(filtered,num_clusters=min(num_chunks, len(filtered)))
     for i, c in enumerate(final_chunks, 1):
         print(f"\n--- Chunk {i} ---\n{c[:1000]}...")
     print(counter)

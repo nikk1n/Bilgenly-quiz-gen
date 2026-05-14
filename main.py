@@ -48,20 +48,22 @@ def process_chunks(chunks: list[str], num_questions: int) -> JSONResponse:
 # --- Endpoints ---
 
 @app.post("/generate/text", response_model=MCQResponse)
-async def generate_from_text(request: TextRequest):
+async def generate_from_text(
+    text: str = Form(...),
+    num_questions: int = Form(3)):
     """Accept raw plain text and return MCQs."""
     loop = asyncio.get_event_loop()
-    if not request.text.strip():
+    if not text.strip():
         raise HTTPException(status_code=400, detail="Text is empty.")
     try:
-        chunk_clusters=lp.extract_context_from_text(request.text)
+        chunk_clusters=lp.extract_context_from_text(text,num_questions)
     except Exception as e:
         print(traceback.format_exc())
         raise HTTPException(status_code=422, detail=f"Could not parse text: {e}")
     # Run blocking model inference in a thread so the API stays responsive
     return await loop.run_in_executor(
         None,
-        lambda: process_chunks(chunk_clusters, request.num_questions)
+        lambda: process_chunks(chunk_clusters, num_questions)
     )
 
 
@@ -77,7 +79,7 @@ async def generate_from_pdf(file: UploadFile = File(...), num_questions: int = 2
         tmp_path = tmp.name
     # Extract text from PDF
     try:
-        chunk_clusters=lp.extract_context_from_pdf(pdf_file_path=tmp_path)
+        chunk_clusters=lp.extract_context_from_pdf(pdf_file_path=tmp_path,num_chunks=num_questions)
     except Exception as e:
         print(traceback.format_exc())
         raise HTTPException(status_code=422, detail=f"Could not parse PDF: {e}")
