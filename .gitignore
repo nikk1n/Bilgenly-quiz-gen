@@ -1,0 +1,59 @@
+# Байт-код и оптимизированные файлы
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Артефакты сборки, если вы решите упаковать проект
+build/
+dist/
+*.egg-info/
+*.egg
+manifest
+
+# Локальные виртуальные окружения
+venv/
+.venv/
+env/
+ENV/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Кэш тестов и отчеты о покрытии кода
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Настройки редакторов кода (JetBrains, VS Code)
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Системные файлы macOS и Windows
+.DS_Store
+Thumbs.db
+
+# Логи выполнения
+*.log
+
+# Локальные переменные окружения и секреты
+.env
+.env.local
+.env.*
+!.env.example
+
+# Локальные базы данных
+*.db
+*.sqlite3
+
+# Кэш линтеров и тайп-чекеров
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+test_files/
+mcq_output.json

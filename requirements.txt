@@ -1,0 +1,11 @@
+numpy
+unstructured
+sentence-transformers
+scikit-learn
+torch
+transformers
+bitsandbytes
+pydantic
+fastapi
+uvicorn
+pydantic-settings
