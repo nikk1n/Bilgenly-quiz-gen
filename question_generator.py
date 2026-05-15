@@ -114,7 +114,7 @@ def fix_brackets(text: str) -> str:
     return balance(text)
 
 
-def parse_mcq_response(raw_text: str) -> list[dict]:
+def parse_mcq_response(raw_text: str,num_questions: int) -> list[dict]:
     def fix_json_escapes(text: str) -> str:
         return re.sub(r'\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})', r'\\\\', text)
 
@@ -168,6 +168,8 @@ def parse_mcq_response(raw_text: str) -> list[dict]:
 
     valid_mcqs = []
     for i, mcq in enumerate(parsed):
+        if len(valid_mcqs) >= num_questions:
+            break
         validated = validate_mcq(mcq)
         if validated:
             valid_mcqs.append(validated)
