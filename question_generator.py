@@ -22,7 +22,7 @@ print("model")
 model = Gemma4ForConditionalGeneration.from_pretrained(
     model_id,
     quantization_config=bnb_config,
-    device_map="cuda:0", # Uses CPU by default
+    device_map="cuda:0", # Uses GPU by default
     token=HF_TOKEN
 )
 print("prompt")

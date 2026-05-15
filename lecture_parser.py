@@ -3,29 +3,45 @@ from unstructured.partition.pdf import partition_pdf
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import AgglomerativeClustering
+from pdfminer.high_level import extract_pages
+from pdfminer.layout import LTTextContainer, LTAnno, LTChar
 import numpy as np
 import os
 import re
 
 model = SentenceTransformer("all-MiniLM-L6-v2")
-def extract_structured_elements(pdf_path=None,pdf=None):
-    # "hi_res" for better layout parsing, "fast" for speed
-    elements = partition_pdf(filename=pdf_path,file=pdf, strategy="auto")
 
+
+def extract_structured_elements(pdf_path=None, pdf=None):
     data = []
-    for el in elements:
-        text = el.text.strip()
-        if not text:
-            continue
 
-        # Filter: only keep meaningful narrative elements
-        if el.category in ("NarrativeText", "ListItem", "UncategorizedText"):
-            # Remove common footer/header garbage
-            if not re.match(r"^(page\s*\d+|©|copyright)", text.lower()):
-                data.append({
-                    "type": el.category,
-                    "text": text
-                })
+    source = pdf_path if pdf_path else pdf
+
+    for page_layout in extract_pages(source):
+        for element in page_layout:
+            if not isinstance(element, LTTextContainer):
+                continue
+
+            text = element.get_text().strip()
+            if not text or len(text) < 10:
+                continue
+
+            # Filter headers/footers by vertical position on page
+            if element.y0 < 50 or element.y1 > page_layout.height - 50:
+                continue
+
+            # Filter common garbage
+            if re.match(r"^(page\s*\d+|©|copyright|\d+$)", text.lower()):
+                continue
+
+            data.append({"type": "NarrativeText", "text": text})
+
+    if not data:
+        raise ValueError(
+            "No text could be extracted from this PDF. "
+            "It may be a scanned or image-only document."
+        )
+
     return data
 
 
@@ -155,3 +171,5 @@ def extract_context_from_text(text,num_chunks=20):
     print(counter)
     return final_chunks
 
+if __name__=="__main__":
+    extract_context_from_pdf("test_files/Lecture5.pdf")
