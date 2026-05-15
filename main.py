@@ -36,9 +36,11 @@ def process_chunks(chunks: list[str], num_questions: int) -> JSONResponse:
     counter = 1
     for chunk in chunks:
         batch_results = gen.generate_mcqs(chunk, num_questions=1)
+        print(f"Question {counter}/{len(chunks)}: {batch_results}")
         results[f"chunk_{counter}"] = batch_results
         total_questions += len(batch_results)
         counter += 1
+    print(results)
     return JSONResponse(content={
         "total_questions": total_questions,
         "results": results,
@@ -68,7 +70,7 @@ async def generate_from_text(
 
 
 @app.post("/generate/pdf", response_model=MCQResponse)
-async def generate_from_pdf(file: UploadFile = File(...), num_questions: int = 20):
+async def generate_from_pdf(file: UploadFile = File(...), num_questions: int = Form(5)):
     """Accept a PDF file and return MCQs."""
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Only PDF files are accepted.")

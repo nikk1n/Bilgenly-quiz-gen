@@ -14,3 +14,4 @@ pi-heif
 unstructured-inference
 pdf2image
 unstructured-pytesseract
+python-multipart

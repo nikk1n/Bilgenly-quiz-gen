@@ -33,7 +33,7 @@ Rules:
 - Write questions as if testing general subject knowledge, NOT as if summarizing a passage.
 - NEVER reference "the text", "the passage", "the context", "as described", "according to", or any similar meta-phrases.
 - Questions must be self-contained and make sense without having read any source material.
-- Only output a valid JSON array. No explanation, no markdown, no extra text.
+- Only output a valid JSON array. No markdown, no extra text.
 
 Output format:
 [
@@ -41,6 +41,7 @@ Output format:
     "question": "...",
     "options": {"A": "...", "B": "...", "C": "...", "D": "..."},
     "answer": ""
+    "explanation": ""
   }
 ]"""
 
@@ -87,66 +88,76 @@ def generate_mcqs(text_chunk: str, num_questions: int = 1) -> list[dict]:
     return parse_mcq_response(raw_text,num_questions)
 
 
-def parse_mcq_response(raw_text: str, num_questions: int) -> list[dict]:
-    # Parse and validate MCQ JSON response with multiple fallback strategies.
+def fix_brackets(text: str) -> str:
+    """Fix common bracket errors in model-generated MCQ JSON."""
 
+    # Fix missing closing brace in "options" block specifically:
+    # Matches "options": { ... "D": "..." followed by }, or , instead of }}
+    text = re.sub(
+        r'("options"\s*:\s*\{[^}]*"[A-D]"\s*:\s*"[^"]*")\s*([,\]])',
+        r'\1}}\2' if False else r'\1}\2',  # add missing }
+        text
+    )
+
+    # More robust: count and balance braces/brackets
+    def balance(s: str) -> str:
+        open_braces = s.count('{') - s.count('}')
+        open_brackets = s.count('[') - s.count(']')
+
+        # Add missing closing braces/brackets at the end
+        # (strip any trailing whitespace/newlines first)
+        s = s.rstrip()
+        s += '}' * max(0, open_braces)
+        s += ']' * max(0, open_brackets)
+        return s
+
+    return balance(text)
+
+
+def parse_mcq_response(raw_text: str) -> list[dict]:
     def fix_json_escapes(text: str) -> str:
-        # Fix invalid escape sequences like \e, \a, etc.
         return re.sub(r'\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})', r'\\\\', text)
 
     def extract_json_candidate(text: str) -> str | None:
-        # Try to extract a JSON array from messy text.
-        # Try to find [...] block
-        match = re.search(r'\[.*?]', text, re.DOTALL)
+        match = re.search(r'\[.*]', text, re.DOTALL)
         return match.group() if match else None
 
     def validate_mcq(mcq: dict) -> dict | None:
-        # Validate a single MCQ and fill missing fields if possible.
         if not isinstance(mcq, dict):
             return None
-
-        # Must have a non-empty question
         question = mcq.get("question", "").strip()
         if not question:
             return None
-
-        # Options must be a dict with at least 2 entries
         options = mcq.get("options", {})
         if not isinstance(options, dict) or len(options) < 2:
             return None
-
-        # Normalize option keys to uppercase
         options = {k.upper(): v for k, v in options.items()}
-
-        # Answer: must exist and match one of the option keys
         answer = str(mcq.get("answer", "")).strip().upper()
         if not answer or answer not in options:
-            # Fall back to first option key if answer is missing/invalid
             answer = next(iter(options))
-
         return {
             "question": question,
             "options": options,
             "answer": answer,
+            "explanation": mcq.get("explanation", ""),
         }
 
-    # Attempt 1: Parse as-is
-    candidates = [raw_text.strip()]
+    raw = raw_text.strip()
+    extracted = extract_json_candidate(raw)
 
-    # Attempt 2: Fix bad escape sequences
-    candidates.append(fix_json_escapes(raw_text.strip()))
-
-    # Attempt 3: Extract [...] block, then fix escapes
-    extracted = extract_json_candidate(raw_text)
+    # Build candidates: each strategy, then with bracket fix applied on top
+    candidates = [raw, fix_json_escapes(raw)]
     if extracted:
-        candidates.append(extracted)
-        candidates.append(fix_json_escapes(extracted))
+        candidates += [extracted, fix_json_escapes(extracted)]
+
+    # Apply bracket balancing to all existing candidates
+    candidates += [fix_brackets(c) for c in candidates]
 
     parsed = None
     for candidate in candidates:
         try:
             parsed = json.loads(candidate)
-            break  # Stop at first successful parse
+            break
         except json.JSONDecodeError:
             continue
 
@@ -155,11 +166,8 @@ def parse_mcq_response(raw_text: str, num_questions: int) -> list[dict]:
         print(f"[RAW OUTPUT]:\n{raw_text}\n")
         return []
 
-    # Validate each MCQ and filter out invalid ones
     valid_mcqs = []
     for i, mcq in enumerate(parsed):
-        if len(valid_mcqs) >= num_questions:
-            break
         validated = validate_mcq(mcq)
         if validated:
             valid_mcqs.append(validated)
